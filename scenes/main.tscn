@@ -1,0 +1,15 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
+[ext_resource type="PackedScene" path="res://scenes/track.tscn" id="2_track"]
+[ext_resource type="PackedScene" path="res://scenes/car.tscn" id="3_car"]
+[ext_resource type="PackedScene" path="res://scenes/hud.tscn" id="4_hud"]
+
+[node name="Main" type="Node2D"]
+script = ExtResource("1_main")
+
+[node name="Track" parent="." instance=ExtResource("2_track")]
+
+[node name="Car" parent="." instance=ExtResource("3_car")]
+
+[node name="HUD" parent="." instance=ExtResource("4_hud")]
