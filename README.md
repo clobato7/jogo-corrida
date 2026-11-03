@@ -1,26 +1,27 @@
-# Jogo de Corrida (v1)
+# Jogo de Corrida
 
-Corrida 2D top-down: um carro, uma pista, 3 voltas e tela de vitória.
+Jogo de corrida 2D com visão de cima, feito em Godot 4.7. Por enquanto é a primeira versão: um carro, uma pista e três voltas até a tela de vitória.
 
-## Controles
-- PC: A/D ou setas esquerda/direita. O clique do mouse também funciona como toque.
-- Celular: toque na metade esquerda da tela para virar à esquerda e na metade direita para virar à direita.
-- O carro acelera sozinho. Bater na parede faz perder velocidade, que volta aos poucos.
+Dá pra jogar em https://clobato7.github.io/jogo-corrida/
 
-## Estrutura
-- `scenes/main.tscn` + `scripts/main.gd`: cena principal. Controla largada, voltas e vitória.
-- `scenes/car.tscn` + `scripts/car.gd`: carro (CharacterBody2D) com a câmera. Ajuste velocidade, curva e aderência pelos @export no Inspetor.
-- `scenes/track.tscn` + `scripts/track.gd`: pista gerada a partir de `control_points` (linha central). Cria paredes, checkpoints, zebras e árvores.
-- `scenes/hud.tscn` + `scripts/hud.gd`: voltas, tempo, contagem 3-2-1, tela de vitória e controles de toque.
-- `scripts/touch_hints.gd`: setas que indicam onde tocar.
+## Como jogar
 
-## Como as voltas são contadas
-A pista tem 8 checkpoints invisíveis (Area2D). O checkpoint 0 é a linha de chegada.
-O carro precisa passar por todos em ordem; ao cruzar o 0 depois do último, conta uma volta.
+O carro acelera sozinho, você só precisa virar.
 
-## Publicação na web
-A cada push na `main`, a GitHub Action `.github/workflows/deploy-web.yml` baixa o Godot 4.7.2,
-exporta o preset "Web" (definido em `export_presets.cfg`) e publica no GitHub Pages.
-O jogo é exportado como PWA: no celular, abra o link e use "Adicionar à tela inicial".
+- No PC: A e D, ou as setas.
+- No celular: toque no lado esquerdo da tela pra virar à esquerda e no lado direito pra virar à direita.
 
-Para exportar à mão no editor: Projeto > Exportar > Web > Exportar Projeto (saída em `build/web/`, que fica fora do git).
+Se bater na parede o carro perde velocidade, mas logo recupera.
+
+## Organização do projeto
+
+- `main`: cena principal, cuida da largada, das voltas e da vitória.
+- `car`: o carro e a câmera. Velocidade, curva e aderência dá pra ajustar direto no Inspetor.
+- `track`: a pista. O traçado sai dos pontos em `control_points`, e a partir deles são criadas as paredes, as zebras, os checkpoints e as árvores.
+- `hud`: tudo que aparece na tela, como voltas, tempo, contagem regressiva, tela de vitória e os controles de toque.
+
+Cada cena fica em `scenes/` e o script com o mesmo nome em `scripts/`.
+
+## Contagem de voltas
+
+Tem 8 checkpoints invisíveis espalhados pela pista, e o primeiro é a linha de chegada. A volta só conta se o carro passar por todos na ordem, então não tem como cortar caminho.
