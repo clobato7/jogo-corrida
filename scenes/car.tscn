@@ -9,7 +9,6 @@ size = Vector2(56, 30)
 [node name="Car" type="CharacterBody2D" unique_id=1095717496]
 motion_mode = 1
 script = ExtResource("1_car")
-body_color = Color(0.72456634, 0.433958, 1.540184e-06, 1)
 
 [node name="CollisionShape2D" type="CollisionShape2D" parent="." unique_id=1726757468]
 shape = SubResource("RectangleShape2D_car")

@@ -84,6 +84,13 @@ def notes(seq, note_len, tail=0.3):
     return out
 
 
+def pop():
+    tt = t(0.35)
+    bang = lowpass(rng.standard_normal(len(tt)), 3000) * np.exp(-tt * 25)
+    crackle = bandpass(rng.standard_normal(len(tt)), 3000, 8000) * (rng.random(len(tt)) > 0.97) * np.exp(-tt * 6)
+    return bang + 0.8 * crackle
+
+
 def ambient():
     # 8 s de vento suave com alguns passarinhos, emendável em loop.
     seconds = 8.0
@@ -112,5 +119,6 @@ if __name__ == "__main__":
     save("go", beep(990, 0.5))
     save("lap", notes([784, 1047], 0.12))           # sol, dó
     save("win", notes([523, 659, 784, 1047], 0.16, 0.6))  # dó, mi, sol, dó
+    save("pop", pop(), 0.6)
     save("ambient", ambient(), 0.6)
     print("Sons gerados em", OUT)

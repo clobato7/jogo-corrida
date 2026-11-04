@@ -6,7 +6,7 @@ extends CharacterBody2D
 @export var turn_speed := 3.0        ## quão rápido o carro vira (radianos por segundo)
 @export var grip := 4.0              ## aderência: quanto maior, menos o carro "escorrega"
 @export var wall_slowdown := 0.5     ## ao bater, a velocidade é multiplicada por isso
-@export var body_color := Color("b96f00")
+@export var model := "f1_laranja"   ## qual carro desenhar (veja CarArt.ORDER)
 @export var desktop_zoom := 0.85     ## zoom da câmera no PC (menor = mais afastado)
 @export var mobile_zoom := 1.25      ## zoom da câmera no celular (tela pequena, câmera mais perto)
 @export var engine_idle_pitch := 0.6 ## tom do motor parado
@@ -65,13 +65,14 @@ func _update_engine_sound() -> void:
 	$EngineSound.volume_db = lerpf(-20.0, -10.0, t)
 
 
+## Troca o carro: muda o desenho e o tamanho da colisão.
+func set_model(new_model: String) -> void:
+	model = new_model
+	var shape := $CollisionShape2D.shape.duplicate() as RectangleShape2D
+	shape.size = CarArt.SIZES[model]
+	$CollisionShape2D.shape = shape
+	queue_redraw()
+
+
 func _draw() -> void:
-	# Desenho simples do carro (apontando para a direita, que é a "frente").
-	var wheel := Color("222222")
-	for p in [Vector2(-20, -18), Vector2(12, -18), Vector2(-20, 12), Vector2(12, 12)]:
-		draw_rect(Rect2(p, Vector2(12, 6)), wheel)
-	draw_rect(Rect2(-30, -14, 60, 28), body_color)
-	draw_rect(Rect2(14, -10, 10, 20), Color("90caf9"))   # para-brisa
-	draw_rect(Rect2(-30, -14, 8, 28), body_color.darkened(0.3))  # aerofólio
-	draw_circle(Vector2(-2, 0), 8.0, Color("ffd54f"))     # capacete do piloto
-	draw_circle(Vector2(1, 0), 3.0, Color("333333"))      # viseira
+	CarArt.draw(self, model)

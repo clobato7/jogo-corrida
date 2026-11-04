@@ -4,7 +4,7 @@ extends Control
 @export var arrow_width := 140.0     ## largura de cada seta
 @export var arrow_height := 190.0    ## altura de cada seta
 @export var side_margin := 50.0      ## distância da seta até a lateral da tela
-@export var bottom_offset := 230.0   ## distância do centro da seta até a parte de baixo da tela
+@export var bottom_offset := 340.0   ## distância do centro da seta até a parte de baixo da tela
 
 
 func _ready() -> void:

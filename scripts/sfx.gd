@@ -9,8 +9,9 @@ const SOUNDS := {
 	"go": preload("res://assets/sfx/go.wav"),
 	"lap": preload("res://assets/sfx/lap.wav"),
 	"win": preload("res://assets/sfx/win.wav"),
+	"pop": preload("res://assets/sfx/pop.wav"),
 }
-const VOLUMES := {"hit": -4.0, "beep": -6.0, "go": -4.0, "lap": -4.0, "win": -2.0}
+const VOLUMES := {"hit": -4.0, "beep": -6.0, "go": -4.0, "lap": -4.0, "win": -2.0, "pop": -8.0}
 
 @export var ambient_volume_db := -16.0
 

@@ -12,13 +12,14 @@ var next_checkpoint := 1   # o carro larga logo depois da linha (checkpoint 0)
 var race_time := 0.0
 var racing := false
 
-## Só mostra a tela inicial na primeira corrida. "static" mantém o valor ao recarregar a cena.
-static var _first_race := true
+## Carro escolhido. "static" mantém o valor quando a cena recarrega em "Correr de novo".
+static var selected_car := ""
 
 
 func _ready() -> void:
 	track.checkpoint_passed.connect(_on_checkpoint_passed)
 	hud.restart_requested.connect(func(): get_tree().reload_current_scene())
+	hud.change_car_requested.connect(_on_change_car)
 
 	var start: Transform2D = track.get_start_transform()
 	car.global_position = start.origin
@@ -27,12 +28,17 @@ func _ready() -> void:
 
 	hud.set_lap(1, total_laps)
 	hud.set_time(0.0)
-	if _first_race:
-		_first_race = false
-		await hud.wait_for_start()
+	if selected_car == "":
+		selected_car = await hud.choose_car()
+	car.set_model(selected_car)
 	await hud.play_countdown()
 	racing = true
 	car.can_drive = true
+
+
+func _on_change_car() -> void:
+	selected_car = ""
+	get_tree().reload_current_scene()
 
 
 func _process(delta: float) -> void:
