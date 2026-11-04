@@ -39,6 +39,8 @@ func _ready() -> void:
 	countdown_label.hide()
 	car_select.hide()
 	name_prompt.hide()
+	$CarSelect/SelectVersionLabel.text = BuildInfo.VERSION
+	$VictoryPanel/Columns/Box/VersionLabel.text = BuildInfo.VERSION
 	save_button.pressed.connect(_on_name_confirmed)
 	name_edit.text_submitted.connect(func(_t): _on_name_confirmed())
 	change_name_button.pressed.connect(_on_change_name)
@@ -106,7 +108,7 @@ func _run_ranking(time_ms: int, car: String) -> void:
 	if sent.has("error"):
 		ranking_status.text = "Não deu para enviar o tempo (%s)" % sent["error"]
 	else:
-		var pos: int = sent["position"]
+		var pos := int(sent["position"])
 		var text := "Você ficou em %dº lugar!" % pos
 		if sent["personal_best"]:
 			text += " Novo recorde seu!"

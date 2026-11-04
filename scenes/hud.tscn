@@ -171,7 +171,7 @@ theme_override_font_sizes/font_size = 44
 theme_override_styles/normal = SubResource("StyleBoxFlat_green")
 theme_override_styles/hover = SubResource("StyleBoxFlat_green_hover")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_green_pressed")
-text = "▶  CORRER DE NOVO"
+text = "CORRER DE NOVO"
 
 [node name="ChangeCarButton" type="Button" parent="VictoryPanel/Columns/Box"]
 custom_minimum_size = Vector2(0, 80)
@@ -185,6 +185,13 @@ theme_override_styles/normal = SubResource("StyleBoxFlat_blue")
 theme_override_styles/hover = SubResource("StyleBoxFlat_blue")
 theme_override_styles/pressed = SubResource("StyleBoxFlat_blue_pressed")
 text = "Trocar de carro"
+
+[node name="VersionLabel" type="Label" parent="VictoryPanel/Columns/Box"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.45)
+theme_override_font_sizes/font_size = 18
+text = "dev"
+horizontal_alignment = 1
 
 [node name="RankingBox" type="VBoxContainer" parent="VictoryPanel/Columns"]
 custom_minimum_size = Vector2(480, 0)
@@ -254,6 +261,24 @@ layout_mode = 2
 mouse_filter = 2
 alignment = 1
 theme_override_constants/separation = 24
+
+[node name="SelectVersionLabel" type="Label" parent="CarSelect"]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -420.0
+offset_top = -44.0
+offset_right = -20.0
+offset_bottom = -12.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_colors/font_color = Color(1, 1, 1, 0.5)
+theme_override_font_sizes/font_size = 20
+text = "dev"
+horizontal_alignment = 2
 
 [node name="NamePrompt" type="ColorRect" parent="."]
 layout_mode = 3

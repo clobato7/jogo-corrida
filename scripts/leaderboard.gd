@@ -49,6 +49,9 @@ func submit(time_ms: int, car: String) -> Dictionary:
 func _rpc(function_name: String, body: Dictionary) -> Dictionary:
 	var req := HTTPRequest.new()
 	req.timeout = 10.0
+	# No navegador a resposta já chega descompactada; se o Godot tentar
+	# descompactar de novo, a leitura falha. Por isso o gzip fica desligado.
+	req.accept_gzip = false
 	add_child(req)
 	var headers := PackedStringArray([
 		"apikey: " + PUBLISHABLE_KEY,

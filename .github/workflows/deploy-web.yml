@@ -50,6 +50,12 @@ jobs:
           mkdir -p "$T"
           cp ~/godot/templates/* "$T"/
 
+      - name: Gravar versão
+        run: |
+          V="v0.${{ github.run_number }}"
+          sed -i "s|const VERSION := \"dev\"|const VERSION := \"$V\"|" scripts/build_info.gd
+          cat scripts/build_info.gd | tail -1
+
       - name: Exportar
         run: |
           mkdir -p build/web
