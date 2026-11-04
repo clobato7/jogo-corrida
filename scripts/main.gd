@@ -44,10 +44,12 @@ func _on_checkpoint_passed(index: int, body: Node2D) -> void:
 		if laps_done >= total_laps:
 			_finish()
 		else:
+			Sfx.play("lap")
 			hud.set_lap(laps_done + 1, total_laps)
 
 
 func _finish() -> void:
 	racing = false
 	car.can_drive = false
+	Sfx.play("win")
 	hud.show_victory(race_time)

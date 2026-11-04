@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://0xqg3bds6cli"]
 
 [ext_resource type="Script" uid="uid://dfnh5vi7knysk" path="res://scripts/car.gd" id="1_car"]
+[ext_resource type="AudioStream" path="res://assets/sfx/engine.wav" id="2_engine"]
 
 [sub_resource type="RectangleShape2D" id="RectangleShape2D_car"]
 size = Vector2(56, 30)
@@ -17,3 +18,9 @@ shape = SubResource("RectangleShape2D_car")
 zoom = Vector2(0.85, 0.85)
 position_smoothing_enabled = true
 position_smoothing_speed = 6.0
+
+[node name="EngineSound" type="AudioStreamPlayer" parent="."]
+stream = ExtResource("2_engine")
+volume_db = -20.0
+pitch_scale = 0.6
+autoplay = true

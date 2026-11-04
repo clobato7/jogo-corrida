@@ -34,8 +34,10 @@ func play_countdown() -> void:
 	countdown_label.show()
 	for text in ["3", "2", "1"]:
 		countdown_label.text = text
+		Sfx.play("beep")
 		await get_tree().create_timer(0.8).timeout
 	countdown_label.text = "VAI!"
+	Sfx.play("go")
 	get_tree().create_timer(0.8).timeout.connect(countdown_label.hide)
 
 

@@ -22,6 +22,8 @@ Se bater na parede o carro perde velocidade, mas logo recupera.
 
 Cada cena fica em `scenes/` e o script com o mesmo nome em `scripts/`.
 
+Os sons ficam em `assets/sfx/` e são tocados pelo autoload `Sfx` (`scripts/sfx.gd`). Eles foram gerados pelo `tools/gen_sfx.py`, mas dá pra trocar qualquer um por outro arquivo com o mesmo nome.
+
 ## Contagem de voltas
 
 Tem 8 checkpoints invisíveis espalhados pela pista, e o primeiro é a linha de chegada. A volta só conta se o carro passar por todos na ordem, então não tem como cortar caminho.

@@ -9,6 +9,8 @@ extends CharacterBody2D
 @export var body_color := Color("b96f00")
 @export var desktop_zoom := 0.85     ## zoom da câmera no PC (menor = mais afastado)
 @export var mobile_zoom := 1.25      ## zoom da câmera no celular (tela pequena, câmera mais perto)
+@export var engine_idle_pitch := 0.6 ## tom do motor parado
+@export var engine_max_pitch := 1.8  ## tom do motor na velocidade máxima
 
 var speed := 0.0
 var can_drive := false
@@ -34,6 +36,8 @@ func _physics_process(delta: float) -> void:
 	else:
 		speed = move_toward(speed, 0.0, acceleration * 2.0 * delta)
 
+	_update_engine_sound()
+
 	var forward := Vector2.RIGHT.rotated(rotation)
 	velocity = velocity.lerp(forward * speed, clampf(grip * delta, 0.0, 1.0))
 	move_and_slide()
@@ -47,9 +51,18 @@ func _physics_process(delta: float) -> void:
 			tangent = -tangent
 		rotation = lerp_angle(rotation, tangent.angle(), 0.25)
 		if _hit_cooldown <= 0.0:
+			if speed > 120.0:
+				Sfx.play("hit")
 			speed *= wall_slowdown
 			velocity *= wall_slowdown
 			_hit_cooldown = 0.3
+
+
+func _update_engine_sound() -> void:
+	# O tom do motor acompanha a velocidade.
+	var t := clampf(speed / max_speed, 0.0, 1.0)
+	$EngineSound.pitch_scale = lerpf(engine_idle_pitch, engine_max_pitch, t)
+	$EngineSound.volume_db = lerpf(-20.0, -10.0, t)
 
 
 func _draw() -> void:
