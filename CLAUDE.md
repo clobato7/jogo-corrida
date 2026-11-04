@@ -9,6 +9,9 @@ Jogo de corrida 2D com visão de cima, feito pelo Caio para o filho pequeno dele
 
 ## Regras de trabalho com o Caio
 
+- **Commit e push só quando o Caio pedir.** Por padrão, as alterações vão para a pasta do projeto no PC dele (`C:\Portables\Godot\Projects\jogo-corrida`, pelo app desktop) para ele testar no editor do Godot. Só faça commit/push direto no GitHub quando ele pedir explicitamente (por exemplo, quando ele estiver só com o celular, sem o Godot do PC).
+  - A pasta `.github` não pode ser gravada pelas ferramentas de arquivo do PC. Se uma mudança precisar mexer no workflow, avise e peça autorização para fazer por push.
+  - Se o PC não estiver acessível, prepare as mudanças e avise; não publique por conta própria.
 - **Sempre que publicar (push na main), informe a versão nova (`v0.N`)** para ele conferir no celular. Pegue o número com `gh run list -R clobato7/jogo-corrida -L 1` depois que a Action terminar.
 - Teste antes de publicar (ver "Como testar"). Mostre screenshots quando a mudança for visual.
 - O Caio também edita pelo editor do Godot. Antes de mexer, faça `git fetch`/`git pull`. Se o Godot estiver com um arquivo aberto, ele pode sobrescrever uma alteração externa ao salvar (já aconteceu com o README).
@@ -47,9 +50,9 @@ Jogo de corrida 2D com visão de cima, feito pelo Caio para o filho pequeno dele
 
 ## Publicação (web)
 
-- Push na `main` dispara `.github/workflows/deploy-web.yml`: baixa Godot 4.7.2 + template web (com cache), grava a versão `v0.<run_number>` em `build_info.gd`, exporta o preset "Web" e publica no GitHub Pages. Também grava `version.txt` no site.
+- Push na `main` dispara `.github/workflows/deploy-web.yml`: baixa Godot 4.7.2 + template web (com cache), grava a versão `v0.<run_number>` em `build_info.gd`, exporta o preset "Web" e publica no GitHub Pages. Também grava `version.txt` no site e roda `tools/version_pack.py`, que renomeia o pacote para `index-v0.N.pck` (o `index.wasm` mantém o nome).
 - Export Web **sem threads** (não precisa de headers COOP/COEP) e como **PWA**.
-- Cache: o navegador (service worker + cache do Pages) pode mostrar versão antiga. O `Updater` consulta `version.txt` sem cache ao abrir; se for diferente de `BuildInfo.VERSION`, mostra o aviso amarelo, e o toque remove o service worker/caches e recarrega.
+- Cache: o navegador (service worker + cache do Pages, `max-age=600`) pode mostrar versão antiga. O `Updater` consulta `version.txt` sem cache ao abrir; se for diferente de `BuildInfo.VERSION`, mostra o aviso amarelo, e o toque remove o service worker/caches e recarrega com `?v=`. Isso só funciona porque o pacote tem nome por versão: com o nome fixo `index.pck`, o navegador reaproveitava o pacote antigo e o aviso voltava em loop.
 - Por que não Cloudflare Pages: o `index.wasm` do Godot tem ~39,5 MB e o limite por arquivo lá é 25 MiB.
 - Domínio próprio (`corrida.gondata.com.br` via CNAME na Cloudflare) ainda **não foi configurado**.
 

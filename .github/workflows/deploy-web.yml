@@ -63,8 +63,11 @@ jobs:
           ~/godot/godot --headless --export-release "Web" build/web/index.html
           test -f build/web/index.wasm && test -f build/web/index.pck
           # Versão publicada, consultada pelo jogo para avisar quando há atualização
-          grep -o 'v0\.[0-9][0-9]*' scripts/build_info.gd > build/web/version.txt
-          cat build/web/version.txt
+          V=$(grep -o 'v0\.[0-9][0-9]*' scripts/build_info.gd)
+          echo "$V" > build/web/version.txt
+          # Pacote do jogo com nome por versão, para o navegador não usar o antigo do cache
+          python3 tools/version_pack.py build/web "$V"
+          ls -la build/web
           ls -la build/web
 
       - uses: actions/configure-pages@v5
