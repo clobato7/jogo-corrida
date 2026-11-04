@@ -64,4 +64,4 @@ func _finish() -> void:
 	racing = false
 	car.can_drive = false
 	Sfx.play("win")
-	hud.show_victory(race_time)
+	hud.show_victory(race_time, selected_car)

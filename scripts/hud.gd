@@ -6,17 +6,25 @@ extends CanvasLayer
 signal restart_requested
 signal change_car_requested
 signal car_chosen(model: String)
+signal name_entered
 
 const CarCard := preload("res://scripts/car_card.gd")
+const CarIcon := preload("res://scripts/car_icon.gd")
 const CONFETTI_COLORS := [Color("ff5252"), Color("ffd740"), Color("69f0ae"), Color("40c4ff"), Color("e040fb"), Color("ffffff")]
 
 @onready var lap_label: Label = $LapLabel
 @onready var time_label: Label = $TimeLabel
 @onready var countdown_label: Label = $CountdownLabel
 @onready var victory_panel: Control = $VictoryPanel
-@onready var result_label: Label = $VictoryPanel/Box/ResultLabel
-@onready var restart_button: Button = $VictoryPanel/Box/RestartButton
-@onready var change_car_button: Button = $VictoryPanel/Box/ChangeCarButton
+@onready var result_label: Label = $VictoryPanel/Columns/Box/ResultLabel
+@onready var restart_button: Button = $VictoryPanel/Columns/Box/RestartButton
+@onready var change_car_button: Button = $VictoryPanel/Columns/Box/ChangeCarButton
+@onready var ranking_list: VBoxContainer = $VictoryPanel/Columns/RankingBox/RankingList
+@onready var ranking_status: Label = $VictoryPanel/Columns/RankingBox/RankingStatus
+@onready var change_name_button: Button = $VictoryPanel/Columns/RankingBox/ChangeNameButton
+@onready var name_prompt: Control = $NamePrompt
+@onready var name_edit: LineEdit = $NamePrompt/Panel/Box/NameEdit
+@onready var save_button: Button = $NamePrompt/Panel/Box/SaveButton
 @onready var car_select: Control = $CarSelect
 @onready var cards: HBoxContainer = $CarSelect/Box/Cards
 
@@ -30,6 +38,10 @@ func _ready() -> void:
 	victory_panel.hide()
 	countdown_label.hide()
 	car_select.hide()
+	name_prompt.hide()
+	save_button.pressed.connect(_on_name_confirmed)
+	name_edit.text_submitted.connect(func(_t): _on_name_confirmed())
+	change_name_button.pressed.connect(_on_change_name)
 	restart_button.pressed.connect(func(): restart_requested.emit())
 	change_car_button.pressed.connect(func(): change_car_requested.emit())
 	for model in CarArt.ORDER:
@@ -68,7 +80,7 @@ func play_countdown() -> void:
 	get_tree().create_timer(0.8).timeout.connect(countdown_label.hide)
 
 
-func show_victory(seconds: float) -> void:
+func show_victory(seconds: float, car: String) -> void:
 	_touches.clear()
 	_apply_touches()
 	result_label.text = "Tempo: " + format_time(seconds)
@@ -76,6 +88,89 @@ func show_victory(seconds: float) -> void:
 	# O painel aparece logo depois dos primeiros fogos.
 	await get_tree().create_timer(0.6).timeout
 	victory_panel.show()
+	_run_ranking(int(round(seconds * 1000.0)), car)
+
+
+# ── Ranking ─────────────────────────────────────
+
+## Envia o tempo e mostra o top 10. Na primeira vez pergunta o nome.
+func _run_ranking(time_ms: int, car: String) -> void:
+	change_name_button.hide()
+	if Leaderboard.player_name == "":
+		await ask_name()
+	ranking_status.text = "Enviando seu tempo..."
+	var sent: Dictionary = await Leaderboard.submit(time_ms, car)
+	var top = await Leaderboard.fetch_top()
+	if top is Array:
+		_render_top(top)
+	if sent.has("error"):
+		ranking_status.text = "Não deu para enviar o tempo (%s)" % sent["error"]
+	else:
+		var pos: int = sent["position"]
+		var text := "Você ficou em %dº lugar!" % pos
+		if sent["personal_best"]:
+			text += " Novo recorde seu!"
+		ranking_status.text = text
+		if pos == 1:
+			Sfx.play("win")
+	if not top is Array:
+		ranking_status.text = "Ranking indisponível agora (sem conexão)"
+	change_name_button.text = "Jogando como %s (trocar)" % Leaderboard.player_name
+	change_name_button.show()
+
+
+func ask_name() -> void:
+	name_edit.text = Leaderboard.player_name
+	name_prompt.show()
+	name_edit.grab_focus()
+	await name_entered
+	name_prompt.hide()
+
+
+func _on_name_confirmed() -> void:
+	var typed := name_edit.text.strip_edges()
+	if typed == "":
+		return
+	Leaderboard.save_player_name(typed)
+	name_entered.emit()
+
+
+func _on_change_name() -> void:
+	await ask_name()
+	change_name_button.text = "Jogando como %s (trocar)" % Leaderboard.player_name
+
+
+func _render_top(rows: Array) -> void:
+	for child in ranking_list.get_children():
+		child.queue_free()
+	if rows.is_empty():
+		ranking_status.text = "Seja o primeiro do ranking!"
+		return
+	for row in rows:
+		var is_me: bool = row["player_name"] == Leaderboard.player_name
+		var color := Color(1, 0.84, 0.2) if is_me else Color.WHITE
+		var line := HBoxContainer.new()
+		line.add_theme_constant_override("separation", 12)
+		line.add_child(_cell("%dº" % int(row["pos"]), 50, color, HORIZONTAL_ALIGNMENT_RIGHT))
+		var icon := CarIcon.new()
+		icon.model = row["car"]
+		line.add_child(icon)
+		var name_cell := _cell(row["player_name"], 0, color)
+		name_cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		line.add_child(name_cell)
+		line.add_child(_cell(format_time(int(row["time_ms"]) / 1000.0), 130, color, HORIZONTAL_ALIGNMENT_RIGHT))
+		ranking_list.add_child(line)
+
+
+func _cell(text: String, width: float, color: Color, align := HORIZONTAL_ALIGNMENT_LEFT) -> Label:
+	var l := Label.new()
+	l.text = text
+	l.custom_minimum_size.x = width
+	l.horizontal_alignment = align
+	l.clip_text = true
+	l.add_theme_font_size_override("font_size", 26)
+	l.add_theme_color_override("font_color", color)
+	return l
 
 
 ## Chuva de confete e alguns fogos estourando pela tela.

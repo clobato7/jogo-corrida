@@ -27,3 +27,7 @@ Os sons ficam em `assets/sfx/` e são tocados pelo autoload `Sfx` (`scripts/sfx.
 ## Contagem de voltas
 
 Tem 8 checkpoints invisíveis espalhados pela pista, e o primeiro é a linha de chegada. A volta só conta se o carro passar por todos na ordem, então não tem como cortar caminho.
+
+## Ranking
+
+No fim da corrida o tempo vai para um top 10 geral no Supabase (schema `corrida`, ver `supabase/ranking.sql`). O jogo só usa a chave pública e só consegue chamar as funções `submit_time` e `top_times`. O nome do jogador fica salvo no aparelho.
