@@ -12,6 +12,9 @@ var next_checkpoint := 1   # o carro larga logo depois da linha (checkpoint 0)
 var race_time := 0.0
 var racing := false
 
+## Só mostra a tela inicial na primeira corrida. "static" mantém o valor ao recarregar a cena.
+static var _first_race := true
+
 
 func _ready() -> void:
 	track.checkpoint_passed.connect(_on_checkpoint_passed)
@@ -24,6 +27,9 @@ func _ready() -> void:
 
 	hud.set_lap(1, total_laps)
 	hud.set_time(0.0)
+	if _first_race:
+		_first_race = false
+		await hud.wait_for_start()
 	await hud.play_countdown()
 	racing = true
 	car.can_drive = true

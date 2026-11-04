@@ -3,6 +3,7 @@ extends CanvasLayer
 ## Toque na metade esquerda da tela = virar à esquerda; metade direita = virar à direita.
 
 signal restart_requested
+signal start_pressed
 
 @onready var lap_label: Label = $LapLabel
 @onready var time_label: Label = $TimeLabel
@@ -10,15 +11,20 @@ signal restart_requested
 @onready var victory_panel: Control = $VictoryPanel
 @onready var result_label: Label = $VictoryPanel/Box/ResultLabel
 @onready var restart_button: Button = $VictoryPanel/Box/RestartButton
+@onready var start_screen: Control = $StartScreen
+@onready var tap_label: Label = $StartScreen/Box/TapLabel
 
 var _touches := {}   # índice do dedo -> -1 (esquerda) ou 1 (direita)
 var _left_on := false
 var _right_on := false
+var _blink_tween: Tween
+var _ignore_presses_until := 0  # evita que o toque de início também vire o carro
 
 
 func _ready() -> void:
 	victory_panel.hide()
 	countdown_label.hide()
+	start_screen.hide()
 	restart_button.pressed.connect(func(): restart_requested.emit())
 
 
@@ -28,6 +34,19 @@ func set_lap(current: int, total: int) -> void:
 
 func set_time(seconds: float) -> void:
 	time_label.text = format_time(seconds)
+
+
+## Mostra a tela inicial e espera um toque (ou clique/tecla).
+## O navegador só libera o som depois de uma interação, por isso esse toque é obrigatório.
+func wait_for_start() -> void:
+	start_screen.show()
+	_blink_tween = create_tween().set_loops()
+	_blink_tween.tween_property(tap_label, "modulate:a", 0.3, 0.6)
+	_blink_tween.tween_property(tap_label, "modulate:a", 1.0, 0.6)
+	await start_pressed
+	_blink_tween.kill()
+	start_screen.hide()
+	_ignore_presses_until = Time.get_ticks_msec() + 300
 
 
 func play_countdown() -> void:
@@ -53,9 +72,17 @@ static func format_time(seconds: float) -> String:
 
 
 func _input(event: InputEvent) -> void:
+	if start_screen.visible:
+		var tapped: bool = (event is InputEventScreenTouch or event is InputEventMouseButton or event is InputEventKey) and event.pressed
+		if tapped:
+			get_viewport().set_input_as_handled()
+			start_pressed.emit()
+		return
 	if victory_panel.visible:
 		return
 	if event is InputEventScreenTouch:
+		if event.pressed and Time.get_ticks_msec() < _ignore_presses_until:
+			return
 		if event.pressed:
 			_touches[event.index] = _side(event.position)
 		else:
