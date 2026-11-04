@@ -10,6 +10,7 @@ signal name_entered
 
 const CarCard := preload("res://scripts/car_card.gd")
 const CarIcon := preload("res://scripts/car_icon.gd")
+const RANKING_NOTE := "* Valem só os 3 melhores tempos de cada jogador"
 const CONFETTI_COLORS := [Color("ff5252"), Color("ffd740"), Color("69f0ae"), Color("40c4ff"), Color("e040fb"), Color("ffffff")]
 
 @onready var lap_label: Label = $LapLabel
@@ -55,6 +56,10 @@ func _ready() -> void:
 		card.pressed.connect(func(): car_chosen.emit(model))
 		cards.add_child(card)
 	_build_ranking_screen()
+	# Nota de rodapé no ranking da tela de vitória (logo abaixo da lista)
+	var note := _note_label()
+	ranking_list.get_parent().add_child(note)
+	ranking_list.get_parent().move_child(note, ranking_list.get_index() + 1)
 
 
 func set_lap(current: int, total: int) -> void:
@@ -187,6 +192,7 @@ func _build_ranking_screen() -> void:
 	_screen_list = VBoxContainer.new()
 	_screen_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	box.add_child(_screen_list)
+	box.add_child(_note_label())
 	_screen_status = Label.new()
 	_screen_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_screen_status.add_theme_font_size_override("font_size", 24)
@@ -213,6 +219,16 @@ func show_ranking_screen() -> void:
 		_fill_ranking(_screen_list, _screen_status, top)
 	else:
 		_screen_status.text = "Ranking indisponível agora (sem conexão)"
+
+
+func _note_label() -> Label:
+	var l := Label.new()
+	l.text = RANKING_NOTE
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	l.add_theme_font_size_override("font_size", 18)
+	l.add_theme_color_override("font_color", Color(1, 1, 1, 0.5))
+	return l
 
 
 func _style_button(b: Button, bg: Color, edge: Color) -> void:
