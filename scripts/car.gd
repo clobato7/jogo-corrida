@@ -7,10 +7,22 @@ extends CharacterBody2D
 @export var grip := 4.0              ## aderência: quanto maior, menos o carro "escorrega"
 @export var wall_slowdown := 0.5     ## ao bater, a velocidade é multiplicada por isso
 @export var body_color := Color("b96f00")
+@export var desktop_zoom := 0.85     ## zoom da câmera no PC (menor = mais afastado)
+@export var mobile_zoom := 1.25      ## zoom da câmera no celular (tela pequena, câmera mais perto)
 
 var speed := 0.0
 var can_drive := false
 var _hit_cooldown := 0.0
+
+
+func _ready() -> void:
+	var zoom := mobile_zoom if is_mobile() else desktop_zoom
+	$Camera2D.zoom = Vector2(zoom, zoom)
+
+
+## Verdadeiro no celular, tanto no app nativo quanto no navegador (Android ou iPhone).
+static func is_mobile() -> bool:
+	return OS.has_feature("mobile") or OS.has_feature("web_android") or OS.has_feature("web_ios")
 
 
 func _physics_process(delta: float) -> void:
