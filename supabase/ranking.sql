@@ -1,133 +1,189 @@
--- Ranking do Jogo de Corrida (schema "corrida")
--- Rode tudo de uma vez no SQL Editor do Supabase. Pode rodar de novo sem problema.
+-- =========================================================
+-- corrida — Ranking de tempos do Jogo de Corrida
+-- =========================================================
+-- Criado em: 04/11/2026
+-- Baseado no padrão do cs_rank
 --
--- O jogo nunca acessa a tabela direto: ele só chama as duas funções abaixo,
--- que validam o que chega. A tabela fica fechada para a chave pública (anon).
+-- Diferente do cs_rank, aqui o frontend (o jogo) também GRAVA dados.
+-- Por isso o anon não acessa a tabela: ele só executa as duas funções
+-- (submit_time e top_times), que validam tudo antes de gravar.
 --
 -- Depois de rodar, exponha o schema na API:
 -- Project Settings > Data API > Exposed schemas > adicionar "corrida" > Save.
 
-create schema if not exists corrida;
-grant usage on schema corrida to anon, authenticated;
+-- 1. Criação do Schema
+CREATE SCHEMA IF NOT EXISTS corrida;
+SET search_path TO corrida;
 
--- 1. Tabela com todos os tempos -------------------------------------------------
 
-create table if not exists corrida.times (
-  id          bigint generated always as identity primary key,
-  player_name text        not null check (char_length(player_name) between 1 and 16),
-  time_ms     integer     not null check (time_ms between 25000 and 3600000), -- 25 s a 1 h
-  car         text        not null check (car in ('hiper_laranja', 'f1_vermelho', 'super_dourado', 'caminhao_azul')),
-  track       text        not null default 'pista1' check (char_length(track) between 1 and 32),
-  created_at  timestamptz not null default now()
+-- ─────────────────────────────────────────────
+-- 2. Tabela de Tempos (times)
+-- ─────────────────────────────────────────────
+-- Um registro por corrida terminada. O ranking usa o melhor tempo de cada
+-- jogador, mas todas as corridas ficam guardadas para análises futuras.
+CREATE TABLE IF NOT EXISTS corrida.times (
+    id          BIGINT       GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    player_name VARCHAR(16)  NOT NULL CHECK (CHAR_LENGTH(player_name) >= 1),  -- nome digitado no jogo
+    time_ms     INT          NOT NULL CHECK (time_ms BETWEEN 25000 AND 3600000), -- tempo total (25 s a 1 h)
+    car         VARCHAR(20)  NOT NULL CHECK (car IN ('hiper_laranja', 'f1_vermelho', 'super_dourado', 'caminhao_azul')),
+    track       VARCHAR(32)  NOT NULL DEFAULT 'pista1',                      -- id da pista (muda se o traçado mudar)
+    created_at  TIMESTAMPTZ  NOT NULL DEFAULT NOW()
 );
 
-create index if not exists times_track_time_idx on corrida.times (track, time_ms);
-create index if not exists times_created_idx on corrida.times (created_at);
-
-alter table corrida.times enable row level security;
--- Sem nenhuma policy: anon e authenticated não leem nem gravam direto na tabela.
-revoke all on all tables in schema corrida from anon, authenticated;
+-- Índices para acelerar consultas
+CREATE INDEX IF NOT EXISTS idx_corrida_times_track_time ON corrida.times(track, time_ms);
+CREATE INDEX IF NOT EXISTS idx_corrida_times_player     ON corrida.times(player_name);
+CREATE INDEX IF NOT EXISTS idx_corrida_times_created    ON corrida.times(created_at);
 
 
--- 2. Enviar um tempo ------------------------------------------------------------
+-- ─────────────────────────────────────────────
+-- 3. Função para enviar um tempo (submit_time)
+-- ─────────────────────────────────────────────
+-- Chamada pelo jogo no fim da corrida.
 -- Retorna, por exemplo: {"position": 3, "personal_best": true}
--- position = posição do jogador no ranking (considerando o melhor tempo de cada um)
-
-create or replace function corrida.submit_time(
-  p_name    text,
-  p_time_ms integer,
-  p_car     text,
-  p_track   text default 'pista1'
+--   position      = posição do jogador no ranking (melhor tempo de cada um)
+--   personal_best = se esse foi o melhor tempo do jogador até agora
+-- SECURITY DEFINER: roda com a permissão do dono, por isso consegue gravar
+-- na tabela mesmo o anon não tendo acesso a ela.
+CREATE OR REPLACE FUNCTION corrida.submit_time(
+    p_name    TEXT,
+    p_time_ms INT,
+    p_car     TEXT,
+    p_track   TEXT DEFAULT 'pista1'
 )
-returns jsonb
-language plpgsql
-security definer
-set search_path = corrida
-as $$
-declare
-  v_name      text := left(trim(p_name), 16);
-  v_prev_best integer;
-  v_position  integer;
-begin
-  if v_name is null or v_name = '' then
-    raise exception 'Nome vazio';
-  end if;
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = corrida
+AS $$
+DECLARE
+    v_name      TEXT := LEFT(TRIM(p_name), 16);
+    v_prev_best INT;
+    v_position  INT;
+BEGIN
+    IF v_name IS NULL OR v_name = '' THEN
+        RAISE EXCEPTION 'Nome vazio';
+    END IF;
 
-  -- Limites contra envio em massa: uma corrida leva mais de 25 s,
-  -- então ninguém precisa enviar dois tempos em menos de 20 s.
-  if exists (
-    select 1 from corrida.times
-    where player_name = v_name and created_at > now() - interval '20 seconds'
-  ) then
-    raise exception 'Aguarde um pouco antes de enviar outro tempo';
-  end if;
+    -- Limites contra envio em massa: uma corrida leva mais de 25 s,
+    -- então ninguém precisa enviar dois tempos em menos de 20 s.
+    IF EXISTS (
+        SELECT 1 FROM corrida.times
+        WHERE player_name = v_name AND created_at > NOW() - INTERVAL '20 seconds'
+    ) THEN
+        RAISE EXCEPTION 'Aguarde um pouco antes de enviar outro tempo';
+    END IF;
 
-  if (select count(*) from corrida.times where created_at > now() - interval '1 minute') >= 60 then
-    raise exception 'Muitos envios agora, tente de novo em instantes';
-  end if;
+    IF (SELECT COUNT(*) FROM corrida.times WHERE created_at > NOW() - INTERVAL '1 minute') >= 60 THEN
+        RAISE EXCEPTION 'Muitos envios agora, tente de novo em instantes';
+    END IF;
 
-  select min(time_ms) into v_prev_best
-  from corrida.times
-  where track = p_track and player_name = v_name;
+    SELECT MIN(time_ms) INTO v_prev_best
+    FROM corrida.times
+    WHERE track = p_track AND player_name = v_name;
 
-  -- As checagens da tabela (tempo, carro, pista) valem aqui também.
-  insert into corrida.times (player_name, time_ms, car, track)
-  values (v_name, p_time_ms, p_car, p_track);
+    -- As checagens da tabela (tempo, carro, pista) valem aqui também.
+    INSERT INTO corrida.times (player_name, time_ms, car, track)
+    VALUES (v_name, p_time_ms, p_car, p_track);
 
-  -- Quantos outros jogadores têm um melhor tempo menor que o deste jogador.
-  select count(*) + 1 into v_position
-  from (
-    select player_name, min(time_ms) as best
-    from corrida.times
-    where track = p_track and player_name <> v_name
-    group by player_name
-  ) others
-  where others.best < least(p_time_ms, coalesce(v_prev_best, p_time_ms));
+    -- Quantos outros jogadores têm um melhor tempo menor que o deste jogador.
+    SELECT COUNT(*) + 1 INTO v_position
+    FROM (
+        SELECT player_name, MIN(time_ms) AS best
+        FROM corrida.times
+        WHERE track = p_track AND player_name <> v_name
+        GROUP BY player_name
+    ) others
+    WHERE others.best < LEAST(p_time_ms, COALESCE(v_prev_best, p_time_ms));
 
-  return jsonb_build_object(
-    'position', v_position,
-    'personal_best', v_prev_best is null or p_time_ms < v_prev_best
-  );
-end;
+    RETURN JSONB_BUILD_OBJECT(
+        'position', v_position,
+        'personal_best', v_prev_best IS NULL OR p_time_ms < v_prev_best
+    );
+END;
 $$;
 
 
--- 3. Top 10 ---------------------------------------------------------------------
--- Um lugar por jogador (o melhor tempo de cada um), para ninguém ocupar o ranking todo.
-
-create or replace function corrida.top_times(
-  p_track text    default 'pista1',
-  p_limit integer default 10
+-- ─────────────────────────────────────────────
+-- 4. Função do Top 10 (top_times)
+-- ─────────────────────────────────────────────
+-- Um lugar por jogador (o melhor tempo de cada um), para ninguém ocupar
+-- o ranking todo sozinho. Máximo de 50 linhas por chamada.
+CREATE OR REPLACE FUNCTION corrida.top_times(
+    p_track TEXT DEFAULT 'pista1',
+    p_limit INT  DEFAULT 10
 )
-returns table (pos bigint, player_name text, time_ms integer, car text, created_at timestamptz)
-language sql
-stable
-security definer
-set search_path = corrida
-as $$
-  with best as (
-    select distinct on (t.player_name) t.player_name, t.time_ms, t.car, t.created_at
-    from corrida.times t
-    where t.track = p_track
-    order by t.player_name, t.time_ms, t.created_at
-  )
-  select row_number() over (order by b.time_ms, b.created_at) as pos,
-         b.player_name, b.time_ms, b.car, b.created_at
-  from best b
-  order by b.time_ms, b.created_at
-  limit least(greatest(p_limit, 1), 50);
+RETURNS TABLE (pos BIGINT, player_name VARCHAR, time_ms INT, car VARCHAR, created_at TIMESTAMPTZ)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = corrida
+AS $$
+    WITH best AS (
+        SELECT DISTINCT ON (t.player_name) t.player_name, t.time_ms, t.car, t.created_at
+        FROM corrida.times t
+        WHERE t.track = p_track
+        ORDER BY t.player_name, t.time_ms, t.created_at
+    )
+    SELECT ROW_NUMBER() OVER (ORDER BY b.time_ms, b.created_at) AS pos,
+           b.player_name, b.time_ms, b.car, b.created_at
+    FROM best b
+    ORDER BY b.time_ms, b.created_at
+    LIMIT LEAST(GREATEST(p_limit, 1), 50);
 $$;
 
 
--- 4. Permissões: a chave pública só pode chamar as duas funções -----------------
+-- ─────────────────────────────────────────────
+-- 5. RLS — Row Level Security
+-- ─────────────────────────────────────────────
+-- Habilita RLS em todas as tabelas do schema.
+-- Sem nenhuma policy de propósito: anon e authenticated não leem nem gravam
+-- direto. O acesso do jogo é só pelas funções acima.
+DO $$
+DECLARE
+  t text;
+BEGIN
+  FOR t IN
+    SELECT tablename
+    FROM pg_tables
+    WHERE schemaname = 'corrida'
+  LOOP
+    EXECUTE format('ALTER TABLE corrida.%I ENABLE ROW LEVEL SECURITY', t);
+  END LOOP;
+END;
+$$;
 
-revoke all on function corrida.submit_time(text, integer, text, text) from public;
-revoke all on function corrida.top_times(text, integer) from public;
-grant execute on function corrida.submit_time(text, integer, text, text) to anon, authenticated;
-grant execute on function corrida.top_times(text, integer) to anon, authenticated;
+
+-- ─────────────────────────────────────────────
+-- 6. Permissões (Grants)
+-- ─────────────────────────────────────────────
+
+-- Revoga tudo e recomeça limpo
+REVOKE ALL ON SCHEMA corrida FROM anon, authenticated, service_role;
+REVOKE ALL ON ALL TABLES IN SCHEMA corrida FROM anon, authenticated;
+-- Funções no Postgres nascem executáveis por todos (PUBLIC); aqui fecha isso.
+REVOKE ALL ON ALL ROUTINES IN SCHEMA corrida FROM PUBLIC, anon, authenticated;
+ALTER DEFAULT PRIVILEGES IN SCHEMA corrida REVOKE EXECUTE ON ROUTINES FROM PUBLIC;
+
+-- service_role (scripts e manutenção via service role key)
+GRANT USAGE ON SCHEMA corrida TO service_role;
+GRANT ALL ON ALL TABLES IN SCHEMA corrida TO service_role;
+GRANT ALL ON ALL ROUTINES IN SCHEMA corrida TO service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA corrida TO service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA corrida GRANT ALL ON TABLES TO service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA corrida GRANT ALL ON ROUTINES TO service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA corrida GRANT ALL ON SEQUENCES TO service_role;
+
+-- anon (o jogo no navegador): só as duas funções, nada de tabela
+GRANT USAGE ON SCHEMA corrida TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION corrida.submit_time(TEXT, INT, TEXT, TEXT) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION corrida.top_times(TEXT, INT) TO anon, authenticated;
 
 
--- 5. Teste rápido (opcional): rode as linhas abaixo separadamente -------------
--- select corrida.submit_time('Teste', 41230, 'hiper_laranja');
--- select * from corrida.top_times();
--- delete from corrida.times where player_name = 'Teste';
+-- ─────────────────────────────────────────────
+-- 7. Teste rápido (opcional)
+-- ─────────────────────────────────────────────
+-- Rode as linhas abaixo separadamente:
+-- SELECT corrida.submit_time('Teste', 41230, 'hiper_laranja');
+-- SELECT * FROM corrida.top_times();
+-- DELETE FROM corrida.times WHERE player_name = 'Teste';
