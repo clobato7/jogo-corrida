@@ -30,14 +30,14 @@ func save_player_name(new_name: String) -> void:
 	cfg.save(SAVE_PATH)
 
 
-## Lista com os 10 melhores: [{pos, player_name, time_ms, car}, ...]
+## Lista com os 10 melhores (até 3 tempos por jogador): [{pos, id, player_name, time_ms, car}, ...]
 ## Em caso de erro devolve {"error": "mensagem"}.
 func fetch_top() -> Variant:
 	var res: Dictionary = await _rpc("top_times", {"p_track": TRACK_ID, "p_limit": 10})
 	return res["data"] if res.has("data") else res
 
 
-## Envia o tempo. Devolve {"position": n, "personal_best": bool} ou {"error": "..."}.
+## Envia o tempo. Devolve {"id", "position", "personal_best", "counted"} ou {"error": "..."}.
 func submit(time_ms: int, car: String) -> Dictionary:
 	var res: Dictionary = await _rpc("submit_time", {
 		"p_name": player_name, "p_time_ms": time_ms, "p_car": car, "p_track": TRACK_ID})

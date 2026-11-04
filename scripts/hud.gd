@@ -32,6 +32,9 @@ var _touches := {}   # índice do dedo -> -1 (esquerda) ou 1 (direita)
 var _left_on := false
 var _right_on := false
 var _ignore_presses_until := 0  # evita que o toque da escolha também vire o carro
+var _ranking_screen: Control
+var _screen_list: VBoxContainer
+var _screen_status: Label
 
 
 func _ready() -> void:
@@ -51,6 +54,7 @@ func _ready() -> void:
 		card.model = model
 		card.pressed.connect(func(): car_chosen.emit(model))
 		cards.add_child(card)
+	_build_ranking_screen()
 
 
 func set_lap(current: int, total: int) -> void:
@@ -104,9 +108,11 @@ func _run_ranking(time_ms: int, car: String) -> void:
 	var sent: Dictionary = await Leaderboard.submit(time_ms, car)
 	var top = await Leaderboard.fetch_top()
 	if top is Array:
-		_render_top(top)
+		_render_top(top, int(sent.get("id", -1)))
 	if sent.has("error"):
 		ranking_status.text = "Não deu para enviar o tempo (%s)" % sent["error"]
+	elif not sent.get("counted", true):
+		ranking_status.text = "Esse tempo não ficou entre os seus 3 melhores. Tente de novo!"
 	else:
 		var pos := int(sent["position"])
 		var text := "Você ficou em %dº lugar!" % pos
@@ -142,11 +148,97 @@ func _on_change_name() -> void:
 	change_name_button.text = "Jogando como %s (trocar)" % Leaderboard.player_name
 
 
-func _render_top(rows: Array) -> void:
-	for child in ranking_list.get_children():
+# ── Ranking na tela inicial ─────────────────────
+
+func _build_ranking_screen() -> void:
+	# Botão na tela de escolha de carro
+	var open_button := Button.new()
+	open_button.text = "VER RANKING"
+	open_button.focus_mode = Control.FOCUS_NONE
+	open_button.custom_minimum_size = Vector2(320, 70)
+	open_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	open_button.add_theme_font_size_override("font_size", 32)
+	_style_button(open_button, Color(0.16, 0.4, 0.8), Color(0.08, 0.22, 0.5))
+	open_button.pressed.connect(show_ranking_screen)
+	$CarSelect/Box.add_child(open_button)
+
+	# Tela do ranking (por cima da escolha de carro)
+	_ranking_screen = ColorRect.new()
+	_ranking_screen.color = Color(0, 0, 0, 0.7)
+	_ranking_screen.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_ranking_screen.hide()
+	add_child(_ranking_screen)
+	var panel := PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", victory_panel.get_theme_stylebox("panel"))
+	panel.custom_minimum_size = Vector2(620, 560)
+	panel.set_anchors_preset(Control.PRESET_CENTER)
+	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	_ranking_screen.add_child(panel)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 10)
+	panel.add_child(box)
+	var title := Label.new()
+	title.text = "TOP 10"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	title.add_theme_font_size_override("font_size", 48)
+	title.add_theme_color_override("font_color", Color(1, 0.84, 0.2))
+	box.add_child(title)
+	_screen_list = VBoxContainer.new()
+	_screen_list.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	box.add_child(_screen_list)
+	_screen_status = Label.new()
+	_screen_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_screen_status.add_theme_font_size_override("font_size", 24)
+	_screen_status.add_theme_color_override("font_color", Color(0.8, 0.85, 0.9))
+	box.add_child(_screen_status)
+	var back := Button.new()
+	back.text = "VOLTAR"
+	back.focus_mode = Control.FOCUS_NONE
+	back.custom_minimum_size = Vector2(0, 80)
+	back.add_theme_font_size_override("font_size", 34)
+	_style_button(back, Color(0.18, 0.65, 0.24), Color(0.08, 0.38, 0.12))
+	back.pressed.connect(_ranking_screen.hide)
+	box.add_child(back)
+
+
+func show_ranking_screen() -> void:
+	_ranking_screen.show()
+	for child in _screen_list.get_children():
+		child.queue_free()
+	_screen_status.text = "Carregando ranking..."
+	var top = await Leaderboard.fetch_top()
+	if top is Array:
+		_screen_status.text = ""
+		_fill_ranking(_screen_list, _screen_status, top)
+	else:
+		_screen_status.text = "Ranking indisponível agora (sem conexão)"
+
+
+func _style_button(b: Button, bg: Color, edge: Color) -> void:
+	for state in ["normal", "hover", "pressed"]:
+		var s := StyleBoxFlat.new()
+		s.bg_color = bg.lightened(0.08) if state == "hover" else (bg.darkened(0.1) if state == "pressed" else bg)
+		s.border_color = edge
+		if state == "pressed":
+			s.border_width_top = 6
+		else:
+			s.border_width_bottom = 8
+		s.set_corner_radius_all(20)
+		b.add_theme_stylebox_override(state, s)
+	for c in ["font_color", "font_hover_color", "font_pressed_color"]:
+		b.add_theme_color_override(c, Color.WHITE)
+
+
+func _render_top(rows: Array, new_id := -1) -> void:
+	_fill_ranking(ranking_list, ranking_status, rows, new_id)
+
+
+func _fill_ranking(list: VBoxContainer, status: Label, rows: Array, new_id := -1) -> void:
+	for child in list.get_children():
 		child.queue_free()
 	if rows.is_empty():
-		ranking_status.text = "Seja o primeiro do ranking!"
+		status.text = "Seja o primeiro do ranking!"
 		return
 	for row in rows:
 		var is_me: bool = row["player_name"] == Leaderboard.player_name
@@ -160,8 +252,13 @@ func _render_top(rows: Array) -> void:
 		var name_cell := _cell(row["player_name"], 0, color)
 		name_cell.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		line.add_child(name_cell)
+		if new_id >= 0 and int(row.get("id", -2)) == new_id:
+			var tag := _cell("NOVO!", 76, Color("69f0ae"))
+			tag.clip_text = false
+			tag.add_theme_font_size_override("font_size", 20)
+			line.add_child(tag)
 		line.add_child(_cell(format_time(int(row["time_ms"]) / 1000.0), 130, color, HORIZONTAL_ALIGNMENT_RIGHT))
-		ranking_list.add_child(line)
+		list.add_child(line)
 
 
 func _cell(text: String, width: float, color: Color, align := HORIZONTAL_ALIGNMENT_LEFT) -> Label:

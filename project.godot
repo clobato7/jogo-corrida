@@ -23,6 +23,7 @@ config/icon="res://icon.svg"
 
 Sfx="*res://scripts/sfx.gd"
 Leaderboard="*res://scripts/leaderboard.gd"
+Updater="*res://scripts/updater.gd"
 
 [display]
 

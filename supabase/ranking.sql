@@ -187,3 +187,114 @@ GRANT EXECUTE ON FUNCTION corrida.top_times(TEXT, INT) TO anon, authenticated;
 -- SELECT corrida.submit_time('Teste', 41230, 'hiper_laranja');
 -- SELECT * FROM corrida.top_times();
 -- DELETE FROM corrida.times WHERE player_name = 'Teste';
+
+
+-- ################### 04/11/2026 (2) ###################
+-- Ranking passa a mostrar até 3 tempos por jogador (antes era só o melhor).
+-- submit_time e top_times também passam a devolver o id da corrida,
+-- para o jogo marcar a linha "NOVO!" no top 10.
+-- Se você já rodou o script antes, rode só este bloco.
+
+-- top_times muda o formato do retorno, então precisa ser recriada
+DROP FUNCTION IF EXISTS corrida.top_times(TEXT, INT);
+
+CREATE OR REPLACE FUNCTION corrida.top_times(
+    p_track      TEXT DEFAULT 'pista1',
+    p_limit      INT  DEFAULT 10,
+    p_per_player INT  DEFAULT 3
+)
+RETURNS TABLE (pos BIGINT, id BIGINT, player_name VARCHAR, time_ms INT, car VARCHAR, created_at TIMESTAMPTZ)
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = corrida
+AS $$
+    WITH ranked AS (
+        SELECT t.id, t.player_name, t.time_ms, t.car, t.created_at,
+               ROW_NUMBER() OVER (PARTITION BY t.player_name ORDER BY t.time_ms, t.created_at) AS rn
+        FROM corrida.times t
+        WHERE t.track = p_track
+    )
+    SELECT ROW_NUMBER() OVER (ORDER BY r.time_ms, r.created_at) AS pos,
+           r.id, r.player_name, r.time_ms, r.car, r.created_at
+    FROM ranked r
+    WHERE r.rn <= LEAST(GREATEST(p_per_player, 1), 10)
+    ORDER BY r.time_ms, r.created_at
+    LIMIT LEAST(GREATEST(p_limit, 1), 50);
+$$;
+
+-- submit_time: mesma validação; a posição agora considera até 3 tempos por jogador.
+-- Retorna, por exemplo: {"id": 12, "position": 4, "personal_best": false, "counted": true}
+--   counted = se esse tempo está entre os 3 melhores do jogador (e por isso entra na conta do ranking)
+CREATE OR REPLACE FUNCTION corrida.submit_time(
+    p_name    TEXT,
+    p_time_ms INT,
+    p_car     TEXT,
+    p_track   TEXT DEFAULT 'pista1'
+)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = corrida
+AS $$
+DECLARE
+    v_name      TEXT := LEFT(TRIM(p_name), 16);
+    v_prev_best INT;
+    v_id        BIGINT;
+    v_rn        INT;
+    v_position  INT;
+BEGIN
+    IF v_name IS NULL OR v_name = '' THEN
+        RAISE EXCEPTION 'Nome vazio';
+    END IF;
+
+    IF EXISTS (
+        SELECT 1 FROM corrida.times
+        WHERE player_name = v_name AND created_at > NOW() - INTERVAL '20 seconds'
+    ) THEN
+        RAISE EXCEPTION 'Aguarde um pouco antes de enviar outro tempo';
+    END IF;
+
+    IF (SELECT COUNT(*) FROM corrida.times WHERE created_at > NOW() - INTERVAL '1 minute') >= 60 THEN
+        RAISE EXCEPTION 'Muitos envios agora, tente de novo em instantes';
+    END IF;
+
+    SELECT MIN(time_ms) INTO v_prev_best
+    FROM corrida.times
+    WHERE track = p_track AND player_name = v_name;
+
+    INSERT INTO corrida.times (player_name, time_ms, car, track)
+    VALUES (v_name, p_time_ms, p_car, p_track)
+    RETURNING id INTO v_id;
+
+    -- Posição deste tempo entre os 3 melhores de cada jogador
+    WITH ranked AS (
+        SELECT t.id, t.time_ms, t.created_at,
+               ROW_NUMBER() OVER (PARTITION BY t.player_name ORDER BY t.time_ms, t.created_at) AS rn
+        FROM corrida.times t
+        WHERE t.track = p_track
+    ),
+    eligible AS (
+        SELECT * FROM ranked WHERE rn <= 3
+    )
+    SELECT (SELECT rn FROM ranked WHERE ranked.id = v_id),
+           (SELECT COUNT(*) + 1 FROM eligible e
+             WHERE e.id <> v_id AND (e.time_ms, e.created_at) < (p_time_ms, NOW()))
+    INTO v_rn, v_position;
+
+    RETURN JSONB_BUILD_OBJECT(
+        'id', v_id,
+        'position', v_position,
+        'personal_best', v_prev_best IS NULL OR p_time_ms < v_prev_best,
+        'counted', v_rn <= 3
+    );
+END;
+$$;
+
+-- Permissões das funções recriadas
+REVOKE ALL ON FUNCTION corrida.top_times(TEXT, INT, INT) FROM PUBLIC;
+REVOKE ALL ON FUNCTION corrida.submit_time(TEXT, INT, TEXT, TEXT) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION corrida.top_times(TEXT, INT, INT) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION corrida.submit_time(TEXT, INT, TEXT, TEXT) TO anon, authenticated;
+GRANT ALL ON FUNCTION corrida.top_times(TEXT, INT, INT) TO service_role;
+-- ################### FIM 04/11/2026 (2) ###################
