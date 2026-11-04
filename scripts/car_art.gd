@@ -2,10 +2,10 @@ class_name CarArt
 ## Desenho dos carros. Todos apontam para a direita (a frente) com o centro em (0, 0).
 ## Usado pelo carro na pista e pelos cards da tela de escolha.
 
-const ORDER := ["f1_laranja", "f1_vermelho", "super_dourado", "caminhao_azul"]
+const ORDER := ["hiper_laranja", "f1_vermelho", "super_dourado", "caminhao_azul"]
 
 const NAMES := {
-	"f1_laranja": "Laranja",
+	"hiper_laranja": "Laranja",
 	"f1_vermelho": "Vermelho",
 	"super_dourado": "Dourado",
 	"caminhao_azul": "Caminhão",
@@ -13,7 +13,7 @@ const NAMES := {
 
 ## Tamanho da área de colisão de cada carro.
 const SIZES := {
-	"f1_laranja": Vector2(66, 30),
+	"hiper_laranja": Vector2(66, 32),
 	"f1_vermelho": Vector2(66, 30),
 	"super_dourado": Vector2(62, 32),
 	"caminhao_azul": Vector2(76, 36),
@@ -25,8 +25,8 @@ const TIRE_RIM := Color("555555")
 
 static func draw(ci: CanvasItem, model: String) -> void:
 	match model:
-		"f1_laranja":
-			_draw_f1(ci, Color("ff8000"), Color("12263f"), Color("47c7fc"), Color("ffffff"))
+		"hiper_laranja":
+			_draw_hypercar(ci, Color("ff8a1f"))
 		"f1_vermelho":
 			_draw_f1(ci, Color("dc0000"), Color("1a1a1a"), Color("ffffff"), Color("ffeb3b"))
 		"super_dourado":
@@ -34,7 +34,7 @@ static func draw(ci: CanvasItem, model: String) -> void:
 		"caminhao_azul":
 			_draw_truck(ci, Color("14286b"))
 		_:
-			_draw_f1(ci, Color("ff8000"), Color("12263f"), Color("47c7fc"), Color("ffffff"))
+			_draw_hypercar(ci, Color("ff8a1f"))
 
 
 static func _tire(ci: CanvasItem, rect: Rect2) -> void:
@@ -78,6 +78,60 @@ static func _draw_f1(ci: CanvasItem, body: Color, accent: Color, stripe: Color, 
 	ci.draw_rect(Rect2(-1, -2.5, 3, 5), Color("222222"))
 	ci.draw_arc(Vector2(-2, 0), 8.0, -PI / 2.0, PI / 2.0, 10, Color("333333"), 2.0)
 	ci.draw_line(Vector2(6, 0), Vector2(11, 0), Color("333333"), 2.0)
+
+
+## Hipercarro: carroceria curvilínea laranja, cabine e teto pretos,
+## grandes entradas de ar laterais e asa traseira larga.
+static func _draw_hypercar(ci: CanvasItem, body: Color) -> void:
+	var black := Color("141414")
+	var shade := body.darkened(0.25)
+	# Rodas grandes aparecendo nos para-lamas
+	_tire(ci, Rect2(-26, -19, 16, 5))
+	_tire(ci, Rect2(-26, 14, 16, 5))
+	_tire(ci, Rect2(13, -18, 14, 5))
+	_tire(ci, Rect2(13, 13, 14, 5))
+	# Parte de baixo preta (assoalho e difusor) um pouco maior que a carroceria
+	_poly(ci, [Vector2(36, -9), Vector2(28, -15), Vector2(-28, -16), Vector2(-35, -11),
+		Vector2(-35, 11), Vector2(-28, 16), Vector2(28, 15), Vector2(36, 9)], black)
+	# Carroceria: bico baixo, para-lamas dianteiros, cintura fina e traseira larga
+	var shape := [Vector2(34, -5), Vector2(31, -11), Vector2(23, -16), Vector2(14, -16), Vector2(6, -13),
+		Vector2(-4, -14), Vector2(-16, -17), Vector2(-27, -16), Vector2(-32, -12),
+		Vector2(-32, 12), Vector2(-27, 16), Vector2(-16, 17), Vector2(-4, 14), Vector2(6, 13),
+		Vector2(14, 16), Vector2(23, 16), Vector2(31, 11), Vector2(34, 5)]
+	_poly(ci, shape, body)
+	# Vinco dos para-lamas
+	ci.draw_polyline(PackedVector2Array([Vector2(30, -9), Vector2(22, -13), Vector2(12, -12)]), shade, 1.5)
+	ci.draw_polyline(PackedVector2Array([Vector2(30, 9), Vector2(22, 13), Vector2(12, 12)]), shade, 1.5)
+	# Entrada de ar no capô
+	_poly(ci, [Vector2(25, -3.5), Vector2(26.5, 0), Vector2(25, 3.5), Vector2(21, 2.5), Vector2(21, -2.5)], black)
+	# Grandes entradas de ar laterais (a "colher" preta)
+	_poly(ci, [Vector2(-2, -13.5), Vector2(-17, -17), Vector2(-20, -13), Vector2(-6, -10.5)], black)
+	_poly(ci, [Vector2(-2, 13.5), Vector2(-17, 17), Vector2(-20, 13), Vector2(-6, 10.5)], black)
+	# Cabine e teto pretos em gota
+	_poly(ci, [Vector2(16, 0), Vector2(14, -9), Vector2(8, -11), Vector2(-6, -11), Vector2(-18, -7),
+		Vector2(-22, 0), Vector2(-18, 7), Vector2(-6, 11), Vector2(8, 11), Vector2(14, 9)], black)
+	# Para-brisa com reflexo
+	_poly(ci, [Vector2(15, 0), Vector2(13.5, -8), Vector2(8, -9.5), Vector2(4, -9.5),
+		Vector2(4, 9.5), Vector2(8, 9.5), Vector2(13.5, 8)], Color("2b3a4a"))
+	ci.draw_line(Vector2(12, -6), Vector2(7, -7.5), Color(1, 1, 1, 0.35), 1.5)
+	# Tampa do motor com aletas
+	for i in 3:
+		var x := -10.0 - i * 3.5
+		ci.draw_line(Vector2(x, -5), Vector2(x, 5), Color("2a2a2a"), 1.5)
+	# Retrovisores
+	ci.draw_rect(Rect2(9, -15, 4, 3), black)
+	ci.draw_rect(Rect2(9, 12, 4, 3), black)
+	# Faróis finos
+	ci.draw_line(Vector2(31, -10), Vector2(26, -14), Color("fffde7"), 2.0)
+	ci.draw_line(Vector2(31, 10), Vector2(26, 14), Color("fffde7"), 2.0)
+	# Asa traseira preta larga, com suportes
+	ci.draw_line(Vector2(-26, -6), Vector2(-31, -6), black, 2.0)
+	ci.draw_line(Vector2(-26, 6), Vector2(-31, 6), black, 2.0)
+	ci.draw_rect(Rect2(-36, -18, 6, 36), black)
+	ci.draw_rect(Rect2(-35, -16, 2, 32), Color("333333"))
+	# Lanternas
+	ci.draw_line(Vector2(-31.5, -11), Vector2(-31.5, -4), Color("ff1744"), 1.5)
+	ci.draw_line(Vector2(-31.5, 11), Vector2(-31.5, 4), Color("ff1744"), 1.5)
 
 
 ## Superesportivo: carroceria em cunha, baixa e larga.

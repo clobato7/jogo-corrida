@@ -6,7 +6,7 @@ extends CharacterBody2D
 @export var turn_speed := 3.0        ## quão rápido o carro vira (radianos por segundo)
 @export var grip := 4.0              ## aderência: quanto maior, menos o carro "escorrega"
 @export var wall_slowdown := 0.5     ## ao bater, a velocidade é multiplicada por isso
-@export var model := "f1_laranja"   ## qual carro desenhar (veja CarArt.ORDER)
+@export var model := "hiper_laranja"   ## qual carro desenhar (veja CarArt.ORDER)
 @export var desktop_zoom := 0.85     ## zoom da câmera no PC (menor = mais afastado)
 @export var mobile_zoom := 1.25      ## zoom da câmera no celular (tela pequena, câmera mais perto)
 @export var engine_idle_pitch := 0.6 ## tom do motor parado

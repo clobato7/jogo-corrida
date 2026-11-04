@@ -1,7 +1,7 @@
 extends Button
 ## Card da tela de escolha: um botão grande com o desenho do carro e o nome embaixo.
 
-var model := "f1_laranja"
+var model := "hiper_laranja"
 var art_scale := 2.6
 
 
